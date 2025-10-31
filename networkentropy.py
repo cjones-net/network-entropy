@@ -1,4 +1,5 @@
 import re
+from typing import Union
 
 import networkx as nx
 import numpy as np
@@ -70,6 +71,189 @@ class entropyGraph(nx.Graph):
             list(zip(sorted(self), list(range(self.number_of_nodes() + 1))))
         )
         nx.relabel_nodes(self, mapping, copy=False)
+
+    def degree_distribution(self) -> list[float]:
+        """
+        Calculates the degree distribution of the network.
+
+        Returns
+        _______
+
+        list: List of float values, corresponding to the probability of
+        choosing a node with degree value given by the list index.
+        """
+
+        return [
+            degree / self.number_of_nodes()
+            for degree in nx.degree_histogram(self)
+        ]
+
+    def remaining_distribution(self) -> list[float]:
+        """
+        Calculates the remaining degree distribution of the network.
+
+        Returns
+        _______
+
+        list: List of float values, corresponding to the probability of
+        choosing an edge uniformly at random, and following the edge to a node
+        with degree minus one given by the list index.
+        """
+
+        deg_dist = self.degree_distribution()
+        return [
+            (degree + 1) * deg_dist[degree + 1] / self.expected_degree()
+            for degree in range(len(deg_dist) - 1)
+        ]
+
+    def expected_degree(self) -> float:
+        """
+        Calculates the average degree of nodes in the network.
+
+        Returns
+        _______
+
+        float: Average degree value.
+        """
+
+        return 2 * self.number_of_edges() / self.number_of_nodes()
+
+    def expected_degree_square(self) -> float:
+        """
+        Calculates the average squared degree value of nodes in the network.
+
+        Returns
+        _______
+
+        float: Average squared degree value.
+        """
+
+        deg_dist = self.degree_distribution()
+        return sum(
+            (degree**2) * deg_dist[degree] for degree in range(len(deg_dist))
+        )
+
+    def critical_point_theory(self) -> float:
+        """
+        Calculate the theoretical critical fraction for a network.
+
+        Returns
+        _______
+
+        float: Value corresponding to the ratio of nodes removed at
+        random for which the network collapses.
+        """
+
+        return 1 - 1 / (
+            self.expected_degree_square() / self.expected_degree() - 1
+        )
+
+    def degree_groups(self) -> dict[int, list[Union[str, int]]]:
+        """
+        Groups nodes with the same degree value together.
+
+        Returns
+        _______
+
+        dict: Dictionary of node groups, with keys given by degree values.
+        """
+
+        deg_dist = self.degree_distribution()
+        deg_groups_dict = {
+            degree: []
+            for degree in range(len(deg_dist))
+            if deg_dist[degree] != 0
+        }
+        for node in self.nodes():
+            deg_groups_dict[self.degree(node)].append(node)
+        return deg_groups_dict
+
+    def joint_distribution(self, cluster_adjust: bool = False) -> np.array:
+        """
+        Calculates the joint degree distribution for a network.
+
+        Parameters
+        __________
+
+        cluster_adjust: Boolean value flagging whether to reduce degree values
+        if nodes have common neighbours.
+
+        Returns
+        _______
+
+        array: Probabilities of choosing connected node pairs with remaining
+        degrees given by array indices.
+        """
+
+        # if adjusting for clustering, degree values of nodes are reduced
+        # according to how many clusters they are in
+        if cluster_adjust == True:
+            deg_list = []
+            for edge in self.edges():
+                deg_adjust = len(
+                    [
+                        neigh
+                        for neigh in nx.common_neighbors(
+                            self, edge[0], edge[1]
+                        )
+                    ]
+                )
+                deg_list.append(
+                    sorted(
+                        [
+                            self.degree(edge[0]) - deg_adjust,
+                            self.degree(edge[1]) - deg_adjust,
+                        ]
+                    )
+                )
+        # if clustering is not adjusted for, degree values are recorded without
+        # adjustment
+        else:
+            deg_list = [
+                sorted([self.degree(edge[0]), self.degree(edge[1])])
+                for edge in self.edges()
+            ]
+        # creates a matrix recording how many pairs of given degrees exist
+        rem_dist = self.remaining_distribution()
+        joint_deg_array = np.array([[0 for q in rem_dist] for r in rem_dist])
+        for degree in deg_list:
+            joint_deg_array[degree[0] - 1][degree[1] - 1] += 1
+            joint_deg_array[degree[1] - 1][degree[0] - 1] += 1
+        # normalises and returns the joint distribution
+        return joint_deg_array / sum(sum(row) for row in joint_deg_array)
+
+    def mutual_info(self, cluster_adjust) -> float:
+        """
+        Calculates the mutual information for a network.
+
+        Parameters
+        __________
+
+        cluster_adjust: Boolean value flagging whether to reduce degree values
+        if nodes have common neighbours.
+
+        Returns
+        _______
+
+        float: Mutual information value for the network.
+        """
+
+        rem_dist = self.remaining_distribution()
+        product_dist = np.array([q * np.array(rem_dist) for q in rem_dist])
+        joint_dist = self.joint_distribution(cluster_adjust)
+        return sum(
+            sum(
+                [
+                    joint_dist[i][j]
+                    * (np.log(joint_dist[i][j]) - np.log(product_dist[i][j]))
+                    for i in range(len(joint_dist))
+                    if product_dist[i][j] != 0 and joint_dist[i][j] != 0
+                ]
+            )
+            for j in range(len(joint_dist))
+        )
+
+
 # performs a correlation preserving edge swap on a graph
 def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
     # chooses a group of nodes according to their degree values
