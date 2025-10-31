@@ -7,6 +7,33 @@ from scipy.special import erf
 
 
 class entropyGraph(nx.Graph):
+    """
+    Child of networkx Graph class, where additonal methods are added for
+    measuring degree distributions and related statistics.
+
+    Methods
+    _______
+
+    graph_from_file(path)
+
+    reduce_and_relabel()
+
+    degree_distribution()
+
+    remaining_distribution()
+
+    expected_degree()
+
+    expected_degree_square()
+
+    critical_point_theory()
+
+    degree_groups()
+
+    joint_distribution(cluster_adjust=False)
+
+    mutual_information(cluster_adjust=False)
+    """
 # performs a correlation preserving edge swap on a graph
 def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
     # chooses a group of nodes according to their degree values
