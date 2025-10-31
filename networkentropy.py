@@ -34,6 +34,11 @@ class entropyGraph(nx.Graph):
 
     mutual_information(cluster_adjust=False)
     """
+
+    def __init__(self):
+        "Intialises the entropyGraph class."
+
+        super(entropyGraph, self).__init__()
 # performs a correlation preserving edge swap on a graph
 def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
     # chooses a group of nodes according to their degree values
