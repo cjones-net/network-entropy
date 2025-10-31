@@ -39,6 +39,37 @@ class entropyGraph(nx.Graph):
         "Intialises the entropyGraph class."
 
         super(entropyGraph, self).__init__()
+
+    def graph_from_file(self, path):
+        "Reads an edge file and converts it to a graph."
+
+        with open(path) as input_file:
+            lines = input_file.readlines()
+        input_file.close()
+        edge_list = [
+            re.split("[,|\t| |\n]", l)[:2]
+            for l in lines
+            if not l.startswith(("%", "#"))
+        ]
+        self.add_edges_from(edge_list)
+
+    def reduce_and_relabel(self):
+        """
+        Reduces a graph to its largest connected component and relabels its
+        nodes.
+        """
+
+        largestComp = sorted(
+            [list(c) for c in nx.connected_components(self)], key=len
+        )[-1]
+
+        self.remove_nodes_from(
+            [node for node in self.nodes() if node not in largestComp]
+        )
+        mapping = dict(
+            list(zip(sorted(self), list(range(self.number_of_nodes() + 1))))
+        )
+        nx.relabel_nodes(self, mapping, copy=False)
 # performs a correlation preserving edge swap on a graph
 def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
     # chooses a group of nodes according to their degree values
