@@ -181,7 +181,7 @@ class entropyGraph(nx.Graph):
         __________
 
         cluster_adjust: Boolean value flagging whether to reduce degree values
-        if nodes have common neighbours.
+        if nodes have common neighbours. Default value is False.
 
         Returns
         _______
@@ -227,7 +227,7 @@ class entropyGraph(nx.Graph):
         # normalises and returns the joint distribution
         return joint_deg_array / sum(sum(row) for row in joint_deg_array)
 
-    def mutual_info(self, cluster_adjust) -> float:
+    def mutual_information(self, cluster_adjust: bool) -> float:
         """
         Calculates the mutual information for a network.
 
