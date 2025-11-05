@@ -368,54 +368,86 @@ def correlation_preserve_swap(
             )
 
 
-# calculates the critical fraction for random node removal via simulation
-def sim_crit_frac(graph, targeting=False, criticalPercent=0.01):
-    # if targeting by degree value, creates a target list in ascending degree order, randomised within degree groups
+def critical_point_simulation(
+    graph: entropyGraph,
+    targeting: bool = False,
+    critical_percent: float = 0.01,
+) -> float:
+    """
+    Calculates the critical fraction for node removal via Monte Carlo
+    simulation.  This process is performed in reverse, where a set proportion
+    of nodes are added to an empty graph, and the size of the largest connected
+    component is then measured as the critical fraction.
+
+    Parameters
+    __________
+
+    graph: entropyGraph object on which node removal is simulated.
+
+    targeting: Boolean value controlling whether to simulate node removal
+    targeted according to degree value. Default is False.
+
+    critical_percent: Float value controlling the stopping point of proportion
+    of nodes to add to the graph. Default is 0.01.
+
+    Returns
+    _______
+
+    Float value giving the ratio of nodes in the largest connected component at
+    the stopping point.
+    """
+    # if targeting by degree value, creates a target list in ascending degree
+    # order, randomised within degree groups
     if targeting == True:
-        targetList = []
+        target_list = []
         for group in graph.degree_groups().values():
-            targetList.extend(
+            target_list.extend(
                 list(np.random.choice(group, len(group), replace=False))
             )
     # if not targeting by degree value, creates a target list in random order
     else:
-        targetList = [n for n in graph.nodes()]
-        np.random.shuffle(targetList)
+        target_list = [n for n in graph.nodes()]
+        np.random.shuffle(target_list)
     # intialises variables corresponding to an empty graph
-    activeNodes = []
-    largestComp = 0
+    active_nodes = []
+    largest_component = 0
     trees = {n: n for n in graph.nodes()}
     sizes = {n: 1 for n in graph.nodes()}
-    # iteratively adds nodes to the empty graph until the largest component reaches a specified critical point
-    while largestComp < round(graph.number_of_nodes() * criticalPercent):
-        # selects the next node
-        node = targetList[len(activeNodes)]
-        # searches over all neighbours present in the graph to determine which component nodes belong to
+    # iteratively adds nodes to the empty graph until the largest component
+    # reaches a specified critical point
+    while largest_component < round(
+        graph.number_of_nodes() * critical_percent
+    ):
+        node = target_list[len(active_nodes)]
         for neigh in graph.neighbors(node):
-            if neigh in activeNodes:
-                # finds the "roots" of the selected node and neighbour via a recursive search
-                nodeRoot = trees[node]
-                neighRoot = trees[neigh]
-                while nodeRoot != trees[nodeRoot]:
-                    trees[nodeRoot] = trees[trees[nodeRoot]]
-                    nodeRoot = trees[nodeRoot]
-                while neighRoot != trees[neighRoot]:
-                    trees[neighRoot] = trees[trees[neighRoot]]
-                    neighRoot = trees[neighRoot]
-                # if the selected node and neighbour do not already have a common root, the labels and component sizes are updated
-                if nodeRoot != neighRoot:
-                    if sizes[nodeRoot] >= sizes[neighRoot]:
-                        trees[neighRoot] = trees[nodeRoot]
-                        sizes[nodeRoot] += sizes[neighRoot]
-                        sizes[neighRoot] = 0
+            if neigh in active_nodes:
+                # finds the "roots" of the selected node and neighbour via a
+                # recursive search
+                node_root = trees[node]
+                neigh_root = trees[neigh]
+                while node_root != trees[node_root]:
+                    trees[node_root] = trees[trees[node_root]]
+                    node_root = trees[node_root]
+                while neigh_root != trees[neigh_root]:
+                    trees[neigh_root] = trees[trees[neigh_root]]
+                    neigh_root = trees[neigh_root]
+                # if the selected node and neighbour do not already have a
+                # common root, the labels and component sizes are updated
+                if node_root != neigh_root:
+                    if sizes[node_root] >= sizes[neigh_root]:
+                        trees[neigh_root] = trees[node_root]
+                        sizes[node_root] += sizes[neigh_root]
+                        sizes[neigh_root] = 0
                     else:
-                        trees[nodeRoot] = trees[neighRoot]
-                        sizes[neighRoot] += sizes[nodeRoot]
-                        sizes[nodeRoot] = 0
-        # records the largest component size and updates the active nodes in the graph
-        largestComp = max(sizes.values())
-        activeNodes.append(node)
-    return 1 - len(activeNodes) / graph.number_of_nodes()
+                        trees[node_root] = trees[neigh_root]
+                        sizes[neigh_root] += sizes[node_root]
+                        sizes[node_root] = 0
+        # records the largest component size and updates the active nodes in
+        # the graph
+        largest_component = max(sizes.values())
+        active_nodes.append(node)
+    return 1 - len(active_nodes) / graph.number_of_nodes()
+
 
 
 # the "zed" function for the truncated normal distribution
