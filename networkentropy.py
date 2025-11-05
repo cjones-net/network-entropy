@@ -259,27 +259,47 @@ class entropyGraph(nx.Graph):
         )
 
 
-# performs a correlation preserving edge swap on a graph
-def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
+def correlation_preserve_swap(
+    graph: entropyGraph,
+    stay_connected: bool = False,
+    max_depth: int = 1000,
+):
+    """
+    Performs edge swaps on a graph while preserving degree-degree correlations.
+
+    Parameters
+    __________
+
+    graph: entropyGraph object upon which edge swaps are performed.
+
+    stay_connected: Boolean value controlling whether to accept swaps which
+    disconnect the graph. Default is False.
+
+    max_depth: Integer value controlling how many unsuccessful consecutive swap
+    attempts to tolerate. Default is 1000.
+    """
     # chooses a group of nodes according to their degree values
-    chosenGroup = graph.degree_groups()[
+    chosen_group = graph.degree_groups()[
         np.random.choice(
             range(len(graph.degree_distribution())),
             p=graph.degree_distribution(),
         )
     ]
-    # initialises parameters for checking whether a successful swap has occurred, and how many failures have occurred
-    successfulSwap = False
+    # initialises parameters for checking whether a successful swap has
+    # occurred, and how many failures have occurred
+    successful_swap = False
     depth = 0
-    # attempts swaps until successful or until the maximum number of allowable failures occurs
-    while successfulSwap == False:
-        if depth < maxDepth:
-            if len(chosenGroup) > 1:
-                # if the degree group has more than two members, chooses two nodes u and v from the group
-                # choses edges (u,x) and (v,y), removes these from the graph and adds (u,y) and (v,x)
+    # attempts swaps until successful or until the maximum number of allowable
+    # failures occurs
+    while successful_swap == False:
+        if depth < max_depth:
+            if len(chosen_group) > 1:
+                # if the degree group has more than two members, chooses two
+                # nodes u and v from the group choses edges (u,x) and (v,y),
+                # removes these from the graph and adds (u,y) and (v,x)
                 try:
                     nodeU, nodeV = np.random.choice(
-                        chosenGroup, size=2, replace=False
+                        chosen_group, size=2, replace=False
                     )
                     nodeX = np.random.choice(
                         [
@@ -297,11 +317,13 @@ def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
                     )
                     graph.remove_edges_from([(nodeU, nodeX), (nodeV, nodeY)])
                     graph.add_edges_from([(nodeU, nodeY), (nodeV, nodeX)])
-                    # ensures the graph remains connected after the swap, if this is required
-                    if stayConnected == True:
+                    # ensures the graph remains connected after the swap, if
+                    # this is required
+                    if stay_connected == True:
                         if nx.is_connected(graph) == True:
-                            successfulSwap = True
-                        # if the graph is disconnected, reverses the swap and tries again
+                            successful_swap = True
+                        # if the graph is disconnected, reverses the swap and
+                        # tries again
                         else:
                             graph.add_edges_from(
                                 [(nodeU, nodeX), (nodeV, nodeY)]
@@ -309,7 +331,7 @@ def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
                             graph.remove_edges_from(
                                 [(nodeU, nodeY), (nodeV, nodeX)]
                             )
-                            chosenGroup = graph.degree_groups()[
+                            chosen_group = graph.degree_groups()[
                                 np.random.choice(
                                     range(len(graph.degree_distribution())),
                                     p=graph.degree_distribution(),
@@ -317,19 +339,21 @@ def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
                             ]
                             depth += 1
                     else:
-                        successfulSwap = True
-                # if x and y cannot be chosen such that both (u,y) and (v,x) edges do not already exist, a new degree group is chosen
+                        successful_swap = True
+                # if x and y cannot be chosen such that both (u,y) and (v,x)
+                # edges do not already exist, a new degree group is chosen
                 except ValueError:
-                    chosenGroup = graph.degree_groups()[
+                    chosen_group = graph.degree_groups()[
                         np.random.choice(
                             range(len(graph.degree_distribution())),
                             p=graph.degree_distribution(),
                         )
                     ]
                     depth += 1
-            # if the chosen degree group has only one member, a new degree group is chosen
+            # if the chosen degree group has only one member, a new degree
+            # group is chosen
             else:
-                chosenGroup = graph.degree_groups()[
+                chosen_group = graph.degree_groups()[
                     np.random.choice(
                         range(len(graph.degree_distribution())),
                         p=graph.degree_distribution(),
@@ -339,7 +363,8 @@ def correlation_preserve_swap(graph, stayConnected=False, maxDepth=1000):
         # if too many failures occur, an exception is raised
         else:
             raise Exception(
-                "Maximum recursion depth reached without finding suitable swap candidates."
+                """Maximum recursion depth reached without finding suitable
+                swap candidates."""
             )
 
 
