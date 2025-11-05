@@ -449,81 +449,244 @@ def critical_point_simulation(
     return 1 - len(active_nodes) / graph.number_of_nodes()
 
 
+def zed_function(mu: float, sigma: float) -> float:
+    """
+    Z function for calculating statistics of the truncated normal distribution.
 
-# the "zed" function for the truncated normal distribution
-def zed_func(mu, sigma):
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for Z, acts as a normalisation term for the truncated normal
+    distribution.
+    """
     return 0.5 * (erf(mu / (sigma * (2**0.5))) + 1)
 
 
-# the "phi" function for the truncated normal distribution
-def phi_func(mu, sigma):
+def phi_function(mu: float, sigma: float) -> float:
+    """
+    Phi function for calculating statistics of the truncated normal
+    distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for phi, which is derived from the probability density function
+    of the standard normal distribution.
+    """
     return (2 * np.pi) ** -0.5 * np.exp(-((mu / sigma) ** 2) / 2)
 
 
-# calculates ratio between first and second moments of the truncated normal distribution and then uses this to calculate Molloy-Reed critical fraction
-def trunc_crit(mu, sigma):
+def trunc_critical_point(mu: float, sigma: float) -> float:
+    """
+    Calculates the theoretical critical fraction for a graph with a degree
+    distribution given by the truncated normal distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for the theoretical critical fraction.
+    """
     kappa = (
         mu**2
         + sigma**2
-        + mu * sigma * (phi_func(mu, sigma) / zed_func(mu, sigma))
-    ) / (mu + (sigma * (phi_func(mu, sigma) / zed_func(mu, sigma))))
+        + mu * sigma * (phi_function(mu, sigma) / zed_function(mu, sigma))
+    ) / (mu + (sigma * (phi_function(mu, sigma) / zed_function(mu, sigma))))
     return 1 - float(1) / (kappa - 1)
 
 
-# degree distribution entropy of the truncated normal distribution
-def trunc_entropy(mu, sigma):
-    truncEnt = np.log(
-        ((2 * np.pi * np.exp(1)) ** 0.5) * sigma * zed_func(mu, sigma)
-    ) - ((mu / (2 * sigma)) * (phi_func(mu, sigma) / zed_func(mu, sigma)))
-    return truncEnt
+def trunc_entropy(mu: float, sigma: float) -> float:
+    """
+    Calculates the entropy of the truncated normal distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for the entropy of the truncated normal distribution.
+    """
+    distribution_entropy = np.log(
+        ((2 * np.pi * np.exp(1)) ** 0.5) * sigma * zed_function(mu, sigma)
+    ) - (
+        (mu / (2 * sigma))
+        * (phi_function(mu, sigma) / zed_function(mu, sigma))
+    )
+    return distribution_entropy
 
 
-# power law probability distribution
-def power_law_distribution(alpha, minDegree, maxDegree=1000):
-    norm = sum((nVal + minDegree) ** (-alpha) for nVal in range(maxDegree))
-    return [(k ** (-alpha)) / norm for k in range(minDegree, maxDegree)]
+def power_law_distribution(
+    alpha: float, min_degree: int, max_degree: int = 1000
+) -> list[float]:
+    """
+    Generates a theoretical power law degree distribution for a graph.
+
+    Parameters
+    __________
+
+    alpha: Float value giving the exponent of the distribution.
+
+    min_degree: Integer value specifying the minimum degree of the
+    distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution. Default value is 1000.
+
+    Returns
+    _______
+
+    List of float values, where each value corresponds to the probability of
+    randomly choosing a node with degree given by list index.
+    """
+    norm = sum((n + min_degree) ** (-alpha) for n in range(max_degree))
+    return [(k ** (-alpha)) / norm for k in range(min_degree, max_degree)]
 
 
-# log normal probability distribution
-def log_normal_distribution(mu, sigma, maxDegree=1000):
+def log_normal_distribution(
+    mu: float, sigma: float, max_degree: int = 1000
+) -> list[float]:
+    """
+    Generates a theoretical log normal degree distribution for a graph.
+
+    Parameters
+    __________
+
+    mu: Float value giving the average for the normal distribution upon which
+    the log normal distribution is based.
+
+    sigma: Float value giving the square root of variance for the normal
+    distribution upon which the log normal distribution is based.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution. Default value is 1000.
+
+    Returns
+    _______
+
+    List of float values, where each value corresponds to the probability of
+    randomly choosing a node with degree given by list index.
+    """
     rawDist = [
         np.exp(-((np.log(k) - mu) ** 2) / (2 * sigma**2))
-        for k in range(1, maxDegree)
+        for k in range(1, max_degree)
     ]
     return [0] + [p / sum(rawDist) for p in rawDist]
 
 
-# given an expected degree and minimum degree value, finds the appropriate value of alpha for the power law distribution
-def alpha_finder(minDegree, expectedDegree, maxDegree=1000):
+def alpha_finder(
+    min_degree: int, expected_degree: float, max_degree: int = 1000
+) -> float:
+    """
+    Finds the appropriate value of alpha for a power law distribution with a
+    specified expected degree and minimum degree value.
+
+    Parameters
+    __________
+
+    min_degree: Integer value specifying the minimum degree of the power law
+    distribution.
+
+    expected_degree: Float value specifying the desired average degree for the
+    power law distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution.  Default value is 1000.
+
+    Returns
+    _______
+
+    Float value estimating the value of alpha satisfying the minimum and
+    average degree conditions.
+    """
 
     def alpha_min(
-        alphaGuess,
-        maxDegree=maxDegree,
-        expectedDegree=expectedDegree,
-        minDegree=minDegree,
+        alpha_guess,
+        max_degree=max_degree,
+        expected_degree=expected_degree,
+        min_degree=min_degree,
     ):
-        probDist = power_law_distribution(alphaGuess, minDegree, maxDegree)
-        calcExpect = sum(
-            k * p for k, p in zip(range(minDegree, maxDegree), probDist)
+        "Minimisation function, used to estimate value of alpha."
+        prob_dist = power_law_distribution(alpha_guess, min_degree, max_degree)
+        calculated_expected = sum(
+            k * p for k, p in zip(range(min_degree, max_degree), prob_dist)
         )
-        return np.abs(calcExpect - expectedDegree)
+        return np.abs(calculated_expected - expected_degree)
 
     alpha = minimize_scalar(alpha_min).x
     return alpha
 
 
-# given an expected degree and sigma value, finds the appropriate value of mu for the log normal distribution
-def mu_finder(sigma, expectedDegree, maxDegree=1000):
+def mu_finder(
+    sigma: float, expected_degree: float, max_degree: int = 1000
+) -> float:
+    """
+    Finds the appropriate value of mu for a log normal distribution with a
+    specified expected degree and sigma value.
+
+    Parameters
+    __________
+
+    sigma: Float value giving the square root of variance for the normal
+    distribution upon which the log normal distribution is based.
+
+    expected_degree: Float value specifying the desired average degree for the
+    power law distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution.  Default value is 1000.
+
+    Returns
+    _______
+
+    Float value estimating the value of mu satisfying the sigma and
+    average degree conditions.
+    """
 
     def mu_min(
-        muGuess,
+        mu_guess,
         sigma=sigma,
-        expectedDegree=expectedDegree,
-        maxDegree=maxDegree,
+        expected_degree=expected_degree,
+        max_degree=max_degree,
     ):
-        probDist = log_normal_distribution(muGuess, sigma, maxDegree)
-        calcExpect = sum(k * p for k, p in zip(range(maxDegree), probDist))
-        return np.abs(calcExpect - expectedDegree)
+        "Minimisation function, used to estimate value of mu."
+        prob_dist = log_normal_distribution(mu_guess, sigma, max_degree)
+        calculated_expected = sum(
+            k * p for k, p in zip(range(max_degree), prob_dist)
+        )
+        return np.abs(calculated_expected - expected_degree)
 
     mu = minimize_scalar(mu_min).x
     return mu
