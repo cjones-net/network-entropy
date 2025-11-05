@@ -15,25 +15,30 @@ class entropyGraph(nx.Graph):
     Methods
     _______
 
-    graph_from_file(path)
+    graph_from_file(path): Loads a graph from an edge list file.
 
-    reduce_and_relabel()
+    reduce_and_relabel(): Reduces a graph to its largest connected component
+    and relabels nodes.
 
-    degree_distribution()
+    degree_distribution(): Calculates graph degree distribution.
 
-    remaining_distribution()
+    remaining_distribution(): Calculates graph remaining degree distribution.
 
-    expected_degree()
+    expected_degree(): Calculates expected degree of nodes in graph.
 
-    expected_degree_square()
+    expected_degree_square(): Calculates expected degree square of nodes in
+    graph.
 
-    critical_point_theory()
+    critical_point_theory(): Calculates the theoretical critical fraction for
+    the graph.
 
-    degree_groups()
+    degree_groups(): Sorts nodes into groups according to their degree values.
 
-    joint_distribution(cluster_adjust=False)
+    joint_distribution(cluster_adjust=False): Calculates the joint distribution
+    of the graph.
 
-    mutual_information(cluster_adjust=False)
+    mutual_information(cluster_adjust=False): Calculates the mutual information
+    of the graph.
     """
 
     def __init__(self):
