@@ -7,6 +7,8 @@ graph = nent.graph_from_file('network_data/fb-pages-tvshow.edges')
 nent.reduce_and_relabel(graph)
 #sets up the initial parameters and intervals for the swapping procedure
 swaps = [0,100,200,400,800,1600,3200]
+FIG_DIR = Path("~/network-entropy/figures").expanduser()
+
 iterations = 100
 successCount = 0
 #initialises the lists for recording critical fraction and mutual information values
@@ -43,8 +45,9 @@ plt.errorbar(y = randCritAve,x=swaps,color='green',linestyle='dashed')
 plt.xlim(-100,3500)
 plt.ylim(0.84,0.94)
 plt.legend()
-plt.ylabel(r'$f_c$',fontdict = {'fontsize':16},rotation = 0)
-plt.xlabel('Number of Edge Swaps',fontdict = {'fontsize':12})
+plt.ylabel(r"$f_c$", fontdict={"fontsize": 16}, rotation=0)
+plt.xlabel("Number of Edge Swaps", fontdict={"fontsize": 12})
+plt.savefig(FIG_DIR / "random_critical_frac_against_edge_swaps.png")
 
 #plots mutual information with clustering against random critical fraction
 plt.figure()
@@ -53,8 +56,9 @@ plt.errorbar(x = randCritAve,y=clusterMutuals,color='green',linestyle='dashed')
 plt.ylim(0.3,1.2)
 plt.xlim(0.84,0.94)
 plt.legend()
-plt.ylabel('Mutual Information with Clustering',fontdict = {'fontsize':12})
-plt.xlabel(r'$f_c$',fontdict = {'fontsize':16})
+plt.ylabel("Mutual Information with Clustering", fontdict={"fontsize": 12})
+plt.xlabel(r"$f_c$", fontdict={"fontsize": 16})
+plt.savefig(FIG_DIR / "mutual_information_against_random_critical_frac.png")
 
 #plots targeted critical fraction against swaps
 plt.figure()
@@ -63,8 +67,9 @@ plt.errorbar(y = targCritAve,x=swaps,color='purple',linestyle='dashed')
 plt.xlim(-100,3500)
 plt.ylim(0.34,0.5)
 plt.legend()
-plt.ylabel(r'$f_c$',fontdict = {'fontsize':12},rotation = 0)
-plt.xlabel('Number of Edge Swaps',fontdict = {'fontsize':12})
+plt.ylabel(r"$f_c$", fontdict={"fontsize": 12}, rotation=0)
+plt.xlabel("Number of Edge Swaps", fontdict={"fontsize": 12})
+plt.savefig(FIG_DIR / "targeted_critical_frac_against_edge_swaps.png")
 
 #plots mutual information with clustering against targeted critical fraction
 plt.figure()
@@ -73,5 +78,6 @@ plt.errorbar(x = targCritAve,y=clusterMutuals,color='purple',linestyle='dashed')
 plt.ylim(0.3,1.2)
 plt.xlim(0.34,0.5)
 plt.legend()
-plt.ylabel('Mutual Information with Clustering',fontdict = {'fontsize':12})
-plt.xlabel(r'$f_c$',fontdict = {'fontsize':16})
+plt.ylabel("Mutual Information with Clustering", fontdict={"fontsize": 12})
+plt.xlabel(r"$f_c$", fontdict={"fontsize": 16})
+plt.savefig(FIG_DIR / "mutual_information_against_targeted_critical_frac.png")
