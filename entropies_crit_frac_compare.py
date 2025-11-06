@@ -3,6 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import entropy
+from tqdm import tqdm
 
 import networkentropy as nent
 
@@ -11,7 +12,6 @@ FIG_DIR = Path("~/network-entropy/figures").expanduser()
 max_degree = 1000
 expected_degree = 10
 
-min_degree = 1
 (
     power_law_degree_entropies,
     power_law_remaining_entropies,
@@ -23,7 +23,7 @@ print(
     + " power law degree distributions."
 )
 # iterates power law distributions over minimum degree values
-while min_degree < 10:
+for min_degree in tqdm(range(1, 10)):
     # finds value for alpha
     alpha = nent.alpha_finder(min_degree, expected_degree)
     # generates power law degree distribution and measures degree distribution
@@ -54,10 +54,7 @@ while min_degree < 10:
             ]
         )
     )
-    # increases minimum degree value for next iteration
-    min_degree += 1
 
-sigma = 0.2
 print("Power law calculations complete!")
 
 (
@@ -70,7 +67,7 @@ print(
     + " log normal degree distributions."
 )
 # iterates numerical log normal distributions over sigma values
-while sigma < 3:
+for sigma in tqdm(np.arange(0.2, 3, 0.2)):
     # finds value for mu
     mu = nent.mu_finder(sigma, expected_degree)
     # generates log normal degree distribution and measures degree distribution entropy
@@ -98,7 +95,6 @@ while sigma < 3:
     # increases sigma value for next iteration
     sigma += 0.2
 
-theory_sigma = 0.01
 print("Log normal calculations complete!")
 
 theory_degree_entropies, theory_remaining_entropies, theory_crit_fractions = (
@@ -111,7 +107,7 @@ print(
 (i.e. non-physical) log normal distributions."""
 )
 # iterates theoretical log normal distributions over sigma values
-while theory_sigma < 3:
+for theory_sigma in tqdm(np.arange(0.01, 3, 0.01)):
     # calculates entropy values and Molloy Reed critical fraction
     theory_degree_entropies.append(
         0.5 * (1 - theory_sigma**2)
@@ -124,8 +120,6 @@ while theory_sigma < 3:
     theory_crit_fractions.append(
         1 - 1 / (expected_degree * np.exp(theory_sigma**2) - 1)
     )
-    # increases sigma value for next iteration
-    theory_sigma += 0.01
 
 print("Theoretical log normal calculations complete!")
 
