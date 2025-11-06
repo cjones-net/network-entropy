@@ -3,30 +3,32 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 from scipy.stats import entropy
+from tqdm import tqdm
 
 import networkentropy as nent
 
-# specifies the directory of network data
-directory = "network_data"
 FIG_DIR = Path("~/network-entropy/figures").expanduser()
+NET_DIR = Path("~/network-entropy/network_data").expanduser()
+
 # initialises lists for degree distribution entropy and molloy-reed critical
 # fraction
 distEntropy, critFracs = [], []
 # iterates over network data files, calculating degree distribution entropy and
 # critical fraction values
-for filename in os.listdir(directory)[:5]:
+for filename in tqdm(os.listdir(NET_DIR)):
     graph = nent.entropyGraph()
     graph.graph_from_file(os.path.join(directory, filename))
     distEntropy.append(entropy(graph.degree_dist()))
     critFracs.append(graph.molloy_reed())
+    graph.graph_from_file(os.path.join(NET_DIR, filename))
 
 # sets the initial value for sigma and initialises lists for truncated normal data
-sigma = 0.01
 truncEntList = []
 truncCritList = []
 # iterates over values of sigma and calculates maximum entropy for a given critical fraction
-while sigma < 100:
+for sigma in tqdm(np.arange(0.01, 100, 0.01)):
     mu = 0.84 * sigma
     truncEnt = nent.trunc_entropy(mu, sigma)
     truncCrit = nent.trunc_crit(mu, sigma)
@@ -34,7 +36,6 @@ while sigma < 100:
     if 1 >= truncCrit >= 0:
         truncEntList.append(truncEnt)
         truncCritList.append(truncCrit)
-    sigma += 0.01
 
 # plots data from both real networks and truncated normal distribution
 fig = plt.figure()
