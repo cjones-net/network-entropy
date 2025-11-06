@@ -11,10 +11,13 @@ FIG_DIR = Path("~/network-entropy/figures").expanduser()
 max_degree = 1000
 expected_degree = 10
 
-power_law_degree_entropies = []
-power_law_remaining_entropies = []
-power_crit_fractions = []
 min_degree = 1
+(
+    power_law_degree_entropies,
+    power_law_remaining_entropies,
+    power_crit_fractions,
+) = ([], [], [])
+
 # iterates power law distributions over minimum degree values
 while min_degree < 10:
     # finds value for alpha
@@ -50,10 +53,12 @@ while min_degree < 10:
     # increases minimum degree value for next iteration
     min_degree += 1
 
-log_norm_degree_entropies = []
-log_norm_remaining_entropies = []
-log_norm_crit_fractions = []
 sigma = 0.2
+(
+    log_norm_degree_entropies,
+    log_norm_remaining_entropies,
+    log_norm_crit_fractions,
+) = ([], [], [])
 # iterates numerical log normal distributions over sigma values
 while sigma < 3:
     # finds value for mu
@@ -83,10 +88,12 @@ while sigma < 3:
     # increases sigma value for next iteration
     sigma += 0.2
 
-theory_degree_entropies = []
-theory_remaining_entropies = []
-theory_crit_fractions = []
 theory_sigma = 0.01
+theory_degree_entropies, theory_remaining_entropies, theory_crit_fractions = (
+    [],
+    [],
+    [],
+)
 # iterates theoretical log normal distributions over sigma values
 while theory_sigma < 3:
     # calculates entropy values and Molloy Reed critical fraction
