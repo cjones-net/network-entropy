@@ -262,6 +262,7 @@ class entropyGraph(nx.Graph):
 def correlation_preserve_swap(
     graph: entropyGraph,
     stay_connected: bool = False,
+    random_seed: int = 3,
     max_depth: int = 1000,
 ):
     """
@@ -275,40 +276,46 @@ def correlation_preserve_swap(
     stay_connected: Boolean value controlling whether to accept swaps which
     disconnect the graph. Default is False.
 
+    random_seed: Integer value passed to the random number generator, used to
+    ensure reproducability of results.  Default is 3.
+
     max_depth: Integer value controlling how many unsuccessful consecutive swap
     attempts to tolerate. Default is 1000.
     """
+    # initialises a random number generator for reproducible results, and
+    # generates a list of seeds for additional random states
+    swap_rng = np.random.default_rng(random_seed)
+    deep_seed_list = swap_rng.integers(max_depth, size=max_depth)
     # chooses a group of nodes according to their degree values
     chosen_group = graph.degree_groups()[
-        np.random.choice(
+        swap_rng.choice(
             range(len(graph.degree_distribution())),
             p=graph.degree_distribution(),
         )
     ]
-    # initialises parameters for checking whether a successful swap has
-    # occurred, and how many failures have occurred
+    # initialises flag for checking whether a successful swap has occurred
     successful_swap = False
-    depth = 0
     # attempts swaps until successful or until the maximum number of allowable
     # failures occurs
     while successful_swap == False:
-        if depth < max_depth:
+        for depth in range(max_depth):
+            deep_rng = np.random.default_rng(deep_seed_list[depth])
             if len(chosen_group) > 1:
                 # if the degree group has more than two members, chooses two
                 # nodes u and v from the group choses edges (u,x) and (v,y),
                 # removes these from the graph and adds (u,y) and (v,x)
                 try:
-                    nodeU, nodeV = np.random.choice(
+                    nodeU, nodeV = deep_rng.choice(
                         chosen_group, size=2, replace=False
                     )
-                    nodeX = np.random.choice(
+                    nodeX = deep_rng.choice(
                         [
                             neigh
                             for neigh in graph[nodeU]
                             if neigh not in graph[nodeV]
                         ]
                     )
-                    nodeY = np.random.choice(
+                    nodeY = deep_rng.choice(
                         [
                             neigh
                             for neigh in graph[nodeV]
@@ -322,6 +329,7 @@ def correlation_preserve_swap(
                     if stay_connected == True:
                         if nx.is_connected(graph) == True:
                             successful_swap = True
+                            break
                         # if the graph is disconnected, reverses the swap and
                         # tries again
                         else:
@@ -332,34 +340,31 @@ def correlation_preserve_swap(
                                 [(nodeU, nodeY), (nodeV, nodeX)]
                             )
                             chosen_group = graph.degree_groups()[
-                                np.random.choice(
+                                deep_rng.choice(
                                     range(len(graph.degree_distribution())),
                                     p=graph.degree_distribution(),
                                 )
                             ]
-                            depth += 1
                     else:
                         successful_swap = True
                 # if x and y cannot be chosen such that both (u,y) and (v,x)
                 # edges do not already exist, a new degree group is chosen
                 except ValueError:
                     chosen_group = graph.degree_groups()[
-                        np.random.choice(
+                        deep_rng.choice(
                             range(len(graph.degree_distribution())),
                             p=graph.degree_distribution(),
                         )
                     ]
-                    depth += 1
             # if the chosen degree group has only one member, a new degree
             # group is chosen
             else:
                 chosen_group = graph.degree_groups()[
-                    np.random.choice(
+                    deep_rng.choice(
                         range(len(graph.degree_distribution())),
                         p=graph.degree_distribution(),
                     )
                 ]
-                depth += 1
         # if too many failures occur, an exception is raised
         else:
             raise Exception(
@@ -371,6 +376,7 @@ def correlation_preserve_swap(
 def critical_point_simulation(
     graph: entropyGraph,
     targeting: bool = False,
+    random_seed: int = 3,
     critical_percent: float = 0.01,
 ) -> float:
     """
@@ -385,10 +391,13 @@ def critical_point_simulation(
     graph: entropyGraph object on which node removal is simulated.
 
     targeting: Boolean value controlling whether to simulate node removal
-    targeted according to degree value. Default is False.
+    targeted according to degree value.  Default is False.
+
+    random_seed: Integer value passed to the random number generator, used to
+    ensure reproducability of results.  Default is 3.
 
     critical_percent: Float value controlling the stopping point of proportion
-    of nodes to add to the graph. Default is 0.01.
+    of nodes to add to the graph.  Default is 0.01.
 
     Returns
     _______
@@ -396,18 +405,20 @@ def critical_point_simulation(
     Float value giving the ratio of nodes in the largest connected component at
     the stopping point.
     """
+    # initialises the random number generator
+    target_rng = np.random.default_rng(random_seed)
     # if targeting by degree value, creates a target list in ascending degree
     # order, randomised within degree groups
     if targeting == True:
         target_list = []
         for group in graph.degree_groups().values():
             target_list.extend(
-                list(np.random.choice(group, len(group), replace=False))
+                list(target_rng.choice(group, len(group), replace=False))
             )
     # if not targeting by degree value, creates a target list in random order
     else:
         target_list = [n for n in graph.nodes()]
-        np.random.shuffle(target_list)
+        target_rng.shuffle(target_list)
     # intialises variables corresponding to an empty graph
     active_nodes = []
     largest_component = 0

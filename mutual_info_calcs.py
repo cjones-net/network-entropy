@@ -33,6 +33,9 @@ success_count = 0
 for success_count in tqdm(range(max(swaps) + 1)):
     # at set intervals, records mutual information and critical fraction values
     if success_count in swaps:
+        # initialises a random number generator to randomise percolation
+        # simulation
+        seed_rng = np.random.default_rng(success_count)
         # informs the user when measurements are being taken
         print(
             f"Successful swaps = {str(success_count)}, calculating"
@@ -47,18 +50,23 @@ for success_count in tqdm(range(max(swaps) + 1)):
         # simulates the critical fraction measurement multiple times in order
         # to obtain an average
         random_crit_fracs = [
-            nent.critical_point_simulation(graph) for i in range(iterations)
+            nent.critical_point_simulation(graph, random_seed=seed)
+            for seed in seed_rng.integers(iterations, size=iterations)
         ]
         targeted_crit_fracs = [
-            nent.critical_point_simulation(graph, targeting=True)
-            for i in range(iterations)
+            nent.critical_point_simulation(
+                graph, targeting=True, random_seed=seed
+            )
+            for seed in seed_rng.integers(iterations, size=iterations)
         ]
         random_crit_frac_averages.append(np.average(random_crit_fracs))
         random_crit_frac_errors.append(np.std(random_crit_fracs))
         targeted_crit_frac_averages.append(np.average(targeted_crit_fracs))
         targeted_crit_frac_errors.append(np.std(targeted_crit_fracs))
     # performs a correlation preserving swap on the graph
-    nent.correlation_preserve_swap(graph, stay_connected=True)
+    nent.correlation_preserve_swap(
+        graph, stay_connected=True, random_seed=success_count
+    )
 
 print(
     "Check that all standard mutual information values are the same: "
