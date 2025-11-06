@@ -1,223 +1,703 @@
-import numpy as np
-import networkx as nx
-from scipy.special import erf
-from scipy.optimize import minimize_scalar
 import re
+from typing import Union
 
-#this class acts as an extension of the nx.Graph class, adding several new functions for measuring the properties of a graph
-class extendGraph(nx.Graph):
-    
-    #calculates degree distribution
-    def degree_dist(self):
-        return [degree/self.number_of_nodes() for degree in nx.degree_histogram(self)]
-    
-    #calculates average degree
-    def expected_degree(self):
-        return 2*self.number_of_edges()/self.number_of_nodes()
-    
-    #calculates average degree squared
-    def expected_degree_square(self):
-        degreeDist = self.degree_dist()
-        return sum((degree**2)*degreeDist[degree] for degree in range(len(degreeDist)))
-    
-    #calculates remaining degree distribution
-    def remain_dist(self):
-        degreeDist = self.degree_dist()
-        return [(degree+1)*degreeDist[degree+1]/self.expected_degree() for degree in range(len(degreeDist)-1)]
-    
-    #organises nodes into groups based on their degree values
-    def degree_groups(self):
-        degreeDist = self.degree_dist()
-        degreeGroups = {degree:[] for degree in range(len(degreeDist)) if degreeDist[degree] != 0}
+import networkx as nx
+import numpy as np
+from scipy.optimize import minimize_scalar
+from scipy.special import erf
+
+
+class entropyGraph(nx.Graph):
+    """
+    Child of networkx Graph class, where additonal methods are added for
+    measuring degree distributions and related statistics.
+
+    Methods
+    _______
+
+    graph_from_file(path): Loads a graph from an edge list file.
+
+    reduce_and_relabel(): Reduces a graph to its largest connected component
+    and relabels nodes.
+
+    degree_distribution(): Calculates graph degree distribution.
+
+    remaining_distribution(): Calculates graph remaining degree distribution.
+
+    expected_degree(): Calculates expected degree of nodes in graph.
+
+    expected_degree_square(): Calculates expected degree square of nodes in
+    graph.
+
+    critical_point_theory(): Calculates the theoretical critical fraction for
+    the graph.
+
+    degree_groups(): Sorts nodes into groups according to their degree values.
+
+    joint_distribution(cluster_adjust=False): Calculates the joint distribution
+    of the graph.
+
+    mutual_information(cluster_adjust=False): Calculates the mutual information
+    of the graph.
+    """
+
+    def __init__(self):
+        "Intialises the entropyGraph class."
+
+        super(entropyGraph, self).__init__()
+
+    def graph_from_file(self, path):
+        "Reads an edge file and converts it to a graph."
+
+        with open(path) as input_file:
+            lines = input_file.readlines()
+        input_file.close()
+        edge_list = [
+            re.split("[,|\t| |\n]", l)[:2]
+            for l in lines
+            if not l.startswith(("%", "#"))
+        ]
+        self.add_edges_from(edge_list)
+
+    def reduce_and_relabel(self):
+        """
+        Reduces a graph to its largest connected component and relabels its
+        nodes.
+        """
+
+        largestComp = sorted(
+            [list(c) for c in nx.connected_components(self)], key=len
+        )[-1]
+
+        self.remove_nodes_from(
+            [node for node in self.nodes() if node not in largestComp]
+        )
+        mapping = dict(
+            list(zip(sorted(self), list(range(self.number_of_nodes() + 1))))
+        )
+        nx.relabel_nodes(self, mapping, copy=False)
+
+    def degree_distribution(self) -> list[float]:
+        """
+        Calculates the degree distribution of the network.
+
+        Returns
+        _______
+
+        list: List of float values, corresponding to the probability of
+        choosing a node with degree value given by the list index.
+        """
+
+        return [
+            degree / self.number_of_nodes()
+            for degree in nx.degree_histogram(self)
+        ]
+
+    def remaining_distribution(self) -> list[float]:
+        """
+        Calculates the remaining degree distribution of the network.
+
+        Returns
+        _______
+
+        list: List of float values, corresponding to the probability of
+        choosing an edge uniformly at random, and following the edge to a node
+        with degree minus one given by the list index.
+        """
+
+        deg_dist = self.degree_distribution()
+        return [
+            (degree + 1) * deg_dist[degree + 1] / self.expected_degree()
+            for degree in range(len(deg_dist) - 1)
+        ]
+
+    def expected_degree(self) -> float:
+        """
+        Calculates the average degree of nodes in the network.
+
+        Returns
+        _______
+
+        float: Average degree value.
+        """
+
+        return 2 * self.number_of_edges() / self.number_of_nodes()
+
+    def expected_degree_square(self) -> float:
+        """
+        Calculates the average squared degree value of nodes in the network.
+
+        Returns
+        _______
+
+        float: Average squared degree value.
+        """
+
+        deg_dist = self.degree_distribution()
+        return sum(
+            (degree**2) * deg_dist[degree] for degree in range(len(deg_dist))
+        )
+
+    def critical_point_theory(self) -> float:
+        """
+        Calculate the theoretical critical fraction for a network.
+
+        Returns
+        _______
+
+        float: Value corresponding to the ratio of nodes removed at
+        random for which the network collapses.
+        """
+
+        return 1 - 1 / (
+            self.expected_degree_square() / self.expected_degree() - 1
+        )
+
+    def degree_groups(self) -> dict[int, list[Union[str, int]]]:
+        """
+        Groups nodes with the same degree value together.
+
+        Returns
+        _______
+
+        dict: Dictionary of node groups, with keys given by degree values.
+        """
+
+        deg_dist = self.degree_distribution()
+        deg_groups_dict = {
+            degree: []
+            for degree in range(len(deg_dist))
+            if deg_dist[degree] != 0
+        }
         for node in self.nodes():
-            degreeGroups[self.degree(node)].append(node)
-        return degreeGroups
-    
-    #calculates the molloy reed critical fraction
-    def molloy_reed(self):
-        return 1-1/(self.expected_degree_square()/self.expected_degree() - 1)
-    
-    #calculates joint distribution
-    def joint_dist(self,clusterAdjust=False):
-        #if adjusting for clustering, degree values of nodes are reduced according to how many clusters they are in
-        if clusterAdjust == True:
-            degreeList = []
+            deg_groups_dict[self.degree(node)].append(node)
+        return deg_groups_dict
+
+    def joint_distribution(self, cluster_adjust: bool = False) -> np.array:
+        """
+        Calculates the joint degree distribution for a network.
+
+        Parameters
+        __________
+
+        cluster_adjust: Boolean value flagging whether to reduce degree values
+        if nodes have common neighbours. Default value is False.
+
+        Returns
+        _______
+
+        array: Probabilities of choosing connected node pairs with remaining
+        degrees given by array indices.
+        """
+
+        # if adjusting for clustering, degree values of nodes are reduced
+        # according to how many clusters they are in
+        if cluster_adjust == True:
+            deg_list = []
             for edge in self.edges():
-                degreeAdjust = len([neigh for neigh in nx.common_neighbors(self,edge[0],edge[1])])
-                degreeList.append(sorted([self.degree(edge[0])-degreeAdjust,self.degree(edge[1])-degreeAdjust]))
-        #if clustering is not adjusted for, degree values are recorded without adjustment
+                deg_adjust = len(
+                    [
+                        neigh
+                        for neigh in nx.common_neighbors(
+                            self, edge[0], edge[1]
+                        )
+                    ]
+                )
+                deg_list.append(
+                    sorted(
+                        [
+                            self.degree(edge[0]) - deg_adjust,
+                            self.degree(edge[1]) - deg_adjust,
+                        ]
+                    )
+                )
+        # if clustering is not adjusted for, degree values are recorded without
+        # adjustment
         else:
-            degreeList = [sorted([self.degree(edge[0]),self.degree(edge[1])]) for edge in self.edges()]
-        #creates a matrix recording how many pairs of given degrees exist
-        remDist = self.remain_dist()
-        jointDegreeMatrix = np.array([[0 for q in remDist] for r in remDist])
-        for degree in degreeList:
-            jointDegreeMatrix[degree[0]-1][degree[1]-1] += 1
-            jointDegreeMatrix[degree[1]-1][degree[0]-1] += 1
-        #normalises and returns the joint distribution
-        return jointDegreeMatrix/sum(sum(row) for row in jointDegreeMatrix)
-    
-    #calculates mutual information
-    def mutual_info(self,clusterAdjust):
-        remDist = self.remain_dist()
-        productDist = np.array([q*np.array(remDist) for q in remDist])        
-        jointDist = self.joint_dist(clusterAdjust)
-        return sum(sum([jointDist[i][j]*(np.log(jointDist[i][j])-np.log(productDist[i][j])) for i in range(len(jointDist)) 
-                        if productDist[i][j] != 0 and jointDist[i][j] != 0]) for j in range(len(jointDist)))
-    
-#alters a graph in place, reducing it to its largest connected components and relabelling its nodes
-def reduce_and_relabel(graph):
-    largestComp = sorted([list(c) for c in nx.connected_components(graph)],key=len)[-1]
-    graph.remove_nodes_from([node for node in graph.nodes() if node not in largestComp])
-    mapping = dict(list(zip(sorted(graph),list(range(graph.number_of_nodes()+1)))))
-    nx.relabel_nodes(graph,mapping,copy=False)
+            deg_list = [
+                sorted([self.degree(edge[0]), self.degree(edge[1])])
+                for edge in self.edges()
+            ]
+        # creates a matrix recording how many pairs of given degrees exist
+        rem_dist = self.remaining_distribution()
+        joint_deg_array = np.array([[0 for q in rem_dist] for r in rem_dist])
+        for degree in deg_list:
+            joint_deg_array[degree[0] - 1][degree[1] - 1] += 1
+            joint_deg_array[degree[1] - 1][degree[0] - 1] += 1
+        # normalises and returns the joint distribution
+        return joint_deg_array / sum(sum(row) for row in joint_deg_array)
 
-#reads network files from a directory and creates a graph
-def graph_from_file(path):
-    with open(path) as inputfile:
-        lines = inputfile.readlines()
-    inputfile.close()
-    edgeList = [re.split('[,|\t| |\n]',l)[:2] for l in lines if not l.startswith(('%','#'))]
-    graph = extendGraph(nx.Graph())
-    graph.add_edges_from(edgeList)
-    return graph
-    
-#performs a correlation preserving edge swap on a graph
-def correlation_preserve_swap(graph,stayConnected=False,maxDepth=1000):
-    #chooses a group of nodes according to their degree values
-    chosenGroup = graph.degree_groups()[np.random.choice(range(len(graph.degree_dist())), p = graph.degree_dist())]
-    #initialises parameters for checking whether a successful swap has occurred, and how many failures have occurred
-    successfulSwap = False
-    depth = 0
-    #attempts swaps until successful or until the maximum number of allowable failures occurs
-    while successfulSwap == False:
-        if depth < maxDepth:
-            if len(chosenGroup) > 1:
-                #if the degree group has more than two members, chooses two nodes u and v from the group
-                #choses edges (u,x) and (v,y), removes these from the graph and adds (u,y) and (v,x)
+    def mutual_information(self, cluster_adjust: bool) -> float:
+        """
+        Calculates the mutual information for a network.
+
+        Parameters
+        __________
+
+        cluster_adjust: Boolean value flagging whether to reduce degree values
+        if nodes have common neighbours.
+
+        Returns
+        _______
+
+        float: Mutual information value for the network.
+        """
+
+        rem_dist = self.remaining_distribution()
+        product_dist = np.array([q * np.array(rem_dist) for q in rem_dist])
+        joint_dist = self.joint_distribution(cluster_adjust)
+        return sum(
+            sum(
+                [
+                    joint_dist[i][j]
+                    * (np.log(joint_dist[i][j]) - np.log(product_dist[i][j]))
+                    for i in range(len(joint_dist))
+                    if product_dist[i][j] != 0 and joint_dist[i][j] != 0
+                ]
+            )
+            for j in range(len(joint_dist))
+        )
+
+
+def correlation_preserve_swap(
+    graph: entropyGraph,
+    stay_connected: bool = False,
+    random_seed: int = 3,
+    max_depth: int = 1000,
+):
+    """
+    Performs edge swaps on a graph while preserving degree-degree correlations.
+
+    Parameters
+    __________
+
+    graph: entropyGraph object upon which edge swaps are performed.
+
+    stay_connected: Boolean value controlling whether to accept swaps which
+    disconnect the graph. Default is False.
+
+    random_seed: Integer value passed to the random number generator, used to
+    ensure reproducability of results.  Default is 3.
+
+    max_depth: Integer value controlling how many unsuccessful consecutive swap
+    attempts to tolerate. Default is 1000.
+    """
+    # initialises a random number generator for reproducible results, and
+    # generates a list of seeds for additional random states
+    swap_rng = np.random.default_rng(random_seed)
+    deep_seed_list = swap_rng.integers(max_depth, size=max_depth)
+    # chooses a group of nodes according to their degree values
+    chosen_group = graph.degree_groups()[
+        swap_rng.choice(
+            range(len(graph.degree_distribution())),
+            p=graph.degree_distribution(),
+        )
+    ]
+    # initialises flag for checking whether a successful swap has occurred
+    successful_swap = False
+    # attempts swaps until successful or until the maximum number of allowable
+    # failures occurs
+    while successful_swap == False:
+        for depth in range(max_depth):
+            deep_rng = np.random.default_rng(deep_seed_list[depth])
+            if len(chosen_group) > 1:
+                # if the degree group has more than two members, chooses two
+                # nodes u and v from the group choses edges (u,x) and (v,y),
+                # removes these from the graph and adds (u,y) and (v,x)
                 try:
-                    nodeU,nodeV = np.random.choice(chosenGroup,size = 2,replace = False)
-                    nodeX = np.random.choice([neigh for neigh in graph[nodeU] if neigh not in graph[nodeV]])
-                    nodeY = np.random.choice([neigh for neigh in graph[nodeV] if neigh not in graph[nodeU]])
-                    graph.remove_edges_from([(nodeU, nodeX),(nodeV,nodeY)])
-                    graph.add_edges_from([(nodeU,nodeY),(nodeV,nodeX)])
-                    #ensures the graph remains connected after the swap, if this is required
-                    if stayConnected == True:
+                    nodeU, nodeV = deep_rng.choice(
+                        chosen_group, size=2, replace=False
+                    )
+                    nodeX = deep_rng.choice(
+                        [
+                            neigh
+                            for neigh in graph[nodeU]
+                            if neigh not in graph[nodeV]
+                        ]
+                    )
+                    nodeY = deep_rng.choice(
+                        [
+                            neigh
+                            for neigh in graph[nodeV]
+                            if neigh not in graph[nodeU]
+                        ]
+                    )
+                    graph.remove_edges_from([(nodeU, nodeX), (nodeV, nodeY)])
+                    graph.add_edges_from([(nodeU, nodeY), (nodeV, nodeX)])
+                    # ensures the graph remains connected after the swap, if
+                    # this is required
+                    if stay_connected == True:
                         if nx.is_connected(graph) == True:
-                            successfulSwap = True
-                        #if the graph is disconnected, reverses the swap and tries again
+                            successful_swap = True
+                            break
+                        # if the graph is disconnected, reverses the swap and
+                        # tries again
                         else:
-                            graph.add_edges_from([(nodeU, nodeX),(nodeV,nodeY)])
-                            graph.remove_edges_from([(nodeU,nodeY),(nodeV,nodeX)])
-                            chosenGroup = graph.degree_groups()[np.random.choice(range(len(graph.degree_dist())), p = graph.degree_dist())]
-                            depth += 1
+                            graph.add_edges_from(
+                                [(nodeU, nodeX), (nodeV, nodeY)]
+                            )
+                            graph.remove_edges_from(
+                                [(nodeU, nodeY), (nodeV, nodeX)]
+                            )
+                            chosen_group = graph.degree_groups()[
+                                deep_rng.choice(
+                                    range(len(graph.degree_distribution())),
+                                    p=graph.degree_distribution(),
+                                )
+                            ]
                     else:
-                        successfulSwap = True
-                #if x and y cannot be chosen such that both (u,y) and (v,x) edges do not already exist, a new degree group is chosen
+                        successful_swap = True
+                # if x and y cannot be chosen such that both (u,y) and (v,x)
+                # edges do not already exist, a new degree group is chosen
                 except ValueError:
-                    chosenGroup = graph.degree_groups()[np.random.choice(range(len(graph.degree_dist())), p = graph.degree_dist())]
-                    depth += 1
-            #if the chosen degree group has only one member, a new degree group is chosen
+                    chosen_group = graph.degree_groups()[
+                        deep_rng.choice(
+                            range(len(graph.degree_distribution())),
+                            p=graph.degree_distribution(),
+                        )
+                    ]
+            # if the chosen degree group has only one member, a new degree
+            # group is chosen
             else:
-                chosenGroup = graph.degree_groups()[np.random.choice(range(len(graph.degree_dist())), p = graph.degree_dist())]
-                depth += 1
-        #if too many failures occur, an exception is raised
+                chosen_group = graph.degree_groups()[
+                    deep_rng.choice(
+                        range(len(graph.degree_distribution())),
+                        p=graph.degree_distribution(),
+                    )
+                ]
+        # if too many failures occur, an exception is raised
         else:
-            raise Exception("Maximum recursion depth reached without finding suitable swap candidates.")
+            raise Exception(
+                """Maximum recursion depth reached without finding suitable
+                swap candidates."""
+            )
 
-#calculates the critical fraction for random node removal via simulation
-def sim_crit_frac(graph,targeting=False,criticalPercent=0.01):
-    #if targeting by degree value, creates a target list in ascending degree order, randomised within degree groups
+
+def critical_point_simulation(
+    graph: entropyGraph,
+    targeting: bool = False,
+    random_seed: int = 3,
+    critical_percent: float = 0.01,
+) -> float:
+    """
+    Calculates the critical fraction for node removal via Monte Carlo
+    simulation.  This process is performed in reverse, where a set proportion
+    of nodes are added to an empty graph, and the size of the largest connected
+    component is then measured as the critical fraction.
+
+    Parameters
+    __________
+
+    graph: entropyGraph object on which node removal is simulated.
+
+    targeting: Boolean value controlling whether to simulate node removal
+    targeted according to degree value.  Default is False.
+
+    random_seed: Integer value passed to the random number generator, used to
+    ensure reproducability of results.  Default is 3.
+
+    critical_percent: Float value controlling the stopping point of proportion
+    of nodes to add to the graph.  Default is 0.01.
+
+    Returns
+    _______
+
+    Float value giving the ratio of nodes in the largest connected component at
+    the stopping point.
+    """
+    # initialises the random number generator
+    target_rng = np.random.default_rng(random_seed)
+    # if targeting by degree value, creates a target list in ascending degree
+    # order, randomised within degree groups
     if targeting == True:
-        targetList = []
+        target_list = []
         for group in graph.degree_groups().values():
-            targetList.extend(list(np.random.choice(group,len(group),replace=False)))
-    #if not targeting by degree value, creates a target list in random order
+            target_list.extend(
+                list(target_rng.choice(group, len(group), replace=False))
+            )
+    # if not targeting by degree value, creates a target list in random order
     else:
-        targetList = [n for n in graph.nodes()]
-        np.random.shuffle(targetList)
-    #intialises variables corresponding to an empty graph
-    activeNodes = []
-    largestComp = 0
-    trees = {n:n for n in graph.nodes()}
-    sizes = {n:1 for n in graph.nodes()}
-    # iteratively adds nodes to the empty graph until the largest component reaches a specified critical point
-    while largestComp < round(graph.number_of_nodes()*criticalPercent):
-        #selects the next node
-        node = targetList[len(activeNodes)]
-        #searches over all neighbours present in the graph to determine which component nodes belong to
+        target_list = [n for n in graph.nodes()]
+        target_rng.shuffle(target_list)
+    # intialises variables corresponding to an empty graph
+    active_nodes = []
+    largest_component = 0
+    trees = {n: n for n in graph.nodes()}
+    sizes = {n: 1 for n in graph.nodes()}
+    # iteratively adds nodes to the empty graph until the largest component
+    # reaches a specified critical point
+    while largest_component < round(
+        graph.number_of_nodes() * critical_percent
+    ):
+        node = target_list[len(active_nodes)]
         for neigh in graph.neighbors(node):
-            if neigh in activeNodes:
-                #finds the "roots" of the selected node and neighbour via a recursive search
-                nodeRoot = trees[node]
-                neighRoot = trees[neigh]
-                while nodeRoot != trees[nodeRoot]:
-                    trees[nodeRoot] = trees[trees[nodeRoot]]
-                    nodeRoot = trees[nodeRoot]
-                while neighRoot != trees[neighRoot]:
-                    trees[neighRoot] = trees[trees[neighRoot]]
-                    neighRoot = trees[neighRoot]
-                #if the selected node and neighbour do not already have a common root, the labels and component sizes are updated
-                if nodeRoot != neighRoot:
-                    if sizes[nodeRoot] >= sizes[neighRoot]:
-                        trees[neighRoot] = trees[nodeRoot]
-                        sizes[nodeRoot] += sizes[neighRoot]
-                        sizes[neighRoot] = 0
+            if neigh in active_nodes:
+                # finds the "roots" of the selected node and neighbour via a
+                # recursive search
+                node_root = trees[node]
+                neigh_root = trees[neigh]
+                while node_root != trees[node_root]:
+                    trees[node_root] = trees[trees[node_root]]
+                    node_root = trees[node_root]
+                while neigh_root != trees[neigh_root]:
+                    trees[neigh_root] = trees[trees[neigh_root]]
+                    neigh_root = trees[neigh_root]
+                # if the selected node and neighbour do not already have a
+                # common root, the labels and component sizes are updated
+                if node_root != neigh_root:
+                    if sizes[node_root] >= sizes[neigh_root]:
+                        trees[neigh_root] = trees[node_root]
+                        sizes[node_root] += sizes[neigh_root]
+                        sizes[neigh_root] = 0
                     else:
-                        trees[nodeRoot] = trees[neighRoot]
-                        sizes[neighRoot] += sizes[nodeRoot]
-                        sizes[nodeRoot] = 0
-        # records the largest component size and updates the active nodes in the graph
-        largestComp = max(sizes.values())
-        activeNodes.append(node)
-    return 1 - len(activeNodes)/graph.number_of_nodes()
-    
-#the "zed" function for the truncated normal distribution
-def zed_func(mu,sigma):
-    return 0.5*(erf(mu/(sigma*(2**0.5))) + 1)
+                        trees[node_root] = trees[neigh_root]
+                        sizes[neigh_root] += sizes[node_root]
+                        sizes[node_root] = 0
+        # records the largest component size and updates the active nodes in
+        # the graph
+        largest_component = max(sizes.values())
+        active_nodes.append(node)
+    return 1 - len(active_nodes) / graph.number_of_nodes()
 
-#the "phi" function for the truncated normal distribution
-def phi_func(mu,sigma):
-    return (2*np.pi)**-0.5 * np.exp(-((mu/sigma)**2)/2)
 
-#calculates ratio between first and second moments of the truncated normal distribution and then uses this to calculate Molloy-Reed critical fraction
-def trunc_crit(mu,sigma):
-    kappa = (mu**2 + sigma**2 + mu*sigma*(phi_func(mu,sigma) / zed_func(mu,sigma)))/(mu + (sigma * (phi_func(mu,sigma) / zed_func(mu,sigma))))
-    return 1 - float(1)/(kappa - 1)
+def zed_function(mu: float, sigma: float) -> float:
+    """
+    Z function for calculating statistics of the truncated normal distribution.
 
-#degree distribution entropy of the truncated normal distribution
-def trunc_entropy(mu,sigma):
-    truncEnt = np.log(((2*np.pi*np.exp(1))**0.5) * sigma * zed_func(mu,sigma)) - ((mu/(2*sigma)) * (phi_func(mu,sigma)/zed_func(mu,sigma)))
-    return truncEnt
+    Parameters
+    __________
 
-#power law probability distribution
-def power_law_distribution(alpha,minDegree,maxDegree=1000):
-    norm = sum((nVal + minDegree)**(-alpha) for nVal in range(maxDegree))
-    return [(k**(-alpha))/norm for k in range(minDegree,maxDegree)]
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
 
-#log normal probability distribution
-def log_normal_distribution(mu,sigma,maxDegree=1000):
-    rawDist = [np.exp(-((np.log(k)-mu)**2)/(2*sigma**2)) for k in range(1,maxDegree)]
-    return [0]+[p/sum(rawDist) for p in rawDist]
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
 
-#given an expected degree and minimum degree value, finds the appropriate value of alpha for the power law distribution
-def alpha_finder(minDegree,expectedDegree,maxDegree=1000):
-    
-    def alpha_min(alphaGuess,maxDegree=maxDegree,expectedDegree=expectedDegree,minDegree=minDegree):
-        probDist = power_law_distribution(alphaGuess,minDegree,maxDegree)
-        calcExpect = sum(k*p for k,p in zip(range(minDegree,maxDegree),probDist))
-        return np.abs(calcExpect-expectedDegree)
+    Returns
+    _______
+
+    Float value for Z, acts as a normalisation term for the truncated normal
+    distribution.
+    """
+    return 0.5 * (erf(mu / (sigma * (2**0.5))) + 1)
+
+
+def phi_function(mu: float, sigma: float) -> float:
+    """
+    Phi function for calculating statistics of the truncated normal
+    distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for phi, which is derived from the probability density function
+    of the standard normal distribution.
+    """
+    return (2 * np.pi) ** -0.5 * np.exp(-((mu / sigma) ** 2) / 2)
+
+
+def trunc_critical_point(mu: float, sigma: float) -> float:
+    """
+    Calculates the theoretical critical fraction for a graph with a degree
+    distribution given by the truncated normal distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for the theoretical critical fraction.
+    """
+    kappa = (
+        mu**2
+        + sigma**2
+        + mu * sigma * (phi_function(mu, sigma) / zed_function(mu, sigma))
+    ) / (mu + (sigma * (phi_function(mu, sigma) / zed_function(mu, sigma))))
+    return 1 - float(1) / (kappa - 1)
+
+
+def trunc_entropy(mu: float, sigma: float) -> float:
+    """
+    Calculates the entropy of the truncated normal distribution.
+
+    Parameters
+    __________
+
+    mu: Float value, corresponding to the mean of the non-truncated normal
+    distribution.
+
+    sigma: Float value, corresponding to the square root of the variance of the
+    non-truncated normal distribution.
+
+    Returns
+    _______
+
+    Float value for the entropy of the truncated normal distribution.
+    """
+    distribution_entropy = np.log(
+        ((2 * np.pi * np.exp(1)) ** 0.5) * sigma * zed_function(mu, sigma)
+    ) - (
+        (mu / (2 * sigma))
+        * (phi_function(mu, sigma) / zed_function(mu, sigma))
+    )
+    return distribution_entropy
+
+
+def power_law_distribution(
+    alpha: float, min_degree: int, max_degree: int = 1000
+) -> list[float]:
+    """
+    Generates a theoretical power law degree distribution for a graph.
+
+    Parameters
+    __________
+
+    alpha: Float value giving the exponent of the distribution.
+
+    min_degree: Integer value specifying the minimum degree of the
+    distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution. Default value is 1000.
+
+    Returns
+    _______
+
+    List of float values, where each value corresponds to the probability of
+    randomly choosing a node with degree given by list index.
+    """
+    norm = sum((n + min_degree) ** (-alpha) for n in range(max_degree))
+    return [(k ** (-alpha)) / norm for k in range(min_degree, max_degree)]
+
+
+def log_normal_distribution(
+    mu: float, sigma: float, max_degree: int = 1000
+) -> list[float]:
+    """
+    Generates a theoretical log normal degree distribution for a graph.
+
+    Parameters
+    __________
+
+    mu: Float value giving the average for the normal distribution upon which
+    the log normal distribution is based.
+
+    sigma: Float value giving the square root of variance for the normal
+    distribution upon which the log normal distribution is based.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution. Default value is 1000.
+
+    Returns
+    _______
+
+    List of float values, where each value corresponds to the probability of
+    randomly choosing a node with degree given by list index.
+    """
+    rawDist = [
+        np.exp(-((np.log(k) - mu) ** 2) / (2 * sigma**2))
+        for k in range(1, max_degree)
+    ]
+    return [0] + [p / sum(rawDist) for p in rawDist]
+
+
+def alpha_finder(
+    min_degree: int, expected_degree: float, max_degree: int = 1000
+) -> float:
+    """
+    Finds the appropriate value of alpha for a power law distribution with a
+    specified expected degree and minimum degree value.
+
+    Parameters
+    __________
+
+    min_degree: Integer value specifying the minimum degree of the power law
+    distribution.
+
+    expected_degree: Float value specifying the desired average degree for the
+    power law distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution.  Default value is 1000.
+
+    Returns
+    _______
+
+    Float value estimating the value of alpha satisfying the minimum and
+    average degree conditions.
+    """
+
+    def alpha_min(
+        alpha_guess,
+        max_degree=max_degree,
+        expected_degree=expected_degree,
+        min_degree=min_degree,
+    ):
+        "Minimisation function, used to estimate value of alpha."
+        prob_dist = power_law_distribution(alpha_guess, min_degree, max_degree)
+        calculated_expected = sum(
+            k * p for k, p in zip(range(min_degree, max_degree), prob_dist)
+        )
+        return np.abs(calculated_expected - expected_degree)
 
     alpha = minimize_scalar(alpha_min).x
     return alpha
 
-#given an expected degree and sigma value, finds the appropriate value of mu for the log normal distribution
-def mu_finder(sigma,expectedDegree,maxDegree=1000):
-    
-    def mu_min(muGuess,sigma=sigma,expectedDegree=expectedDegree,maxDegree=maxDegree):
-        probDist = log_normal_distribution(muGuess,sigma,maxDegree)
-        calcExpect = sum(k*p for k,p in zip(range(maxDegree),probDist))
-        return np.abs(calcExpect-expectedDegree)
-    
+
+def mu_finder(
+    sigma: float, expected_degree: float, max_degree: int = 1000
+) -> float:
+    """
+    Finds the appropriate value of mu for a log normal distribution with a
+    specified expected degree and sigma value.
+
+    Parameters
+    __________
+
+    sigma: Float value giving the square root of variance for the normal
+    distribution upon which the log normal distribution is based.
+
+    expected_degree: Float value specifying the desired average degree for the
+    power law distribution.
+
+    max_degree: Integer value specifying the maximum degree of the
+    distribution.  Default value is 1000.
+
+    Returns
+    _______
+
+    Float value estimating the value of mu satisfying the sigma and
+    average degree conditions.
+    """
+
+    def mu_min(
+        mu_guess,
+        sigma=sigma,
+        expected_degree=expected_degree,
+        max_degree=max_degree,
+    ):
+        "Minimisation function, used to estimate value of mu."
+        prob_dist = log_normal_distribution(mu_guess, sigma, max_degree)
+        calculated_expected = sum(
+            k * p for k, p in zip(range(max_degree), prob_dist)
+        )
+        return np.abs(calculated_expected - expected_degree)
+
     mu = minimize_scalar(mu_min).x
     return mu
