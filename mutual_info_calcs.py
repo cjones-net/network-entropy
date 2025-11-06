@@ -1,10 +1,10 @@
-import networkentropy as nent
-import numpy as np
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
+import networkentropy as nent
 
 FIG_DIR = Path("~/network-entropy/figures").expanduser()
 
