@@ -57,7 +57,12 @@ for success_count in tqdm(range(max(swaps) + 1)):
     # performs a correlation preserving swap on the graph
     nent.correlation_preserve_swap(graph, stay_connected=True)
 
-#plots random critical fraction against swaps
+print(
+    "Check that all standard mutual information values are the same: "
+    f"{all(standard_mutual_information)}."
+)
+
+# plots random critical fraction against swaps
 plt.figure()
 plt.errorbar(
     y=random_crit_frac_averages,
