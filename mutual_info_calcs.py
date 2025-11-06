@@ -72,6 +72,10 @@ plt.errorbar(
     y=random_crit_frac_averages, x=swaps, color="green", linestyle="dashed"
 )
 plt.xlim(-100, 3500)
+plt.ylim(
+    min(random_crit_frac_averages) - max(random_crit_frac_errors) - 0.01,
+    max(random_crit_frac_averages) + max(random_crit_frac_errors) + 0.01,
+)
 plt.legend()
 plt.ylabel(r"$f_c$", fontdict={"fontsize": 16}, rotation=0)
 plt.xlabel("Number of Edge Swaps", fontdict={"fontsize": 12})
@@ -94,6 +98,14 @@ plt.errorbar(
     color="green",
     linestyle="dashed",
 )
+plt.xlim(
+    min(random_crit_frac_averages) - max(random_crit_frac_errors) - 0.01,
+    max(random_crit_frac_averages) + max(random_crit_frac_errors) + 0.01,
+)
+plt.ylim(
+    min(cluster_adjust_mutual_information) - 0.1,
+    max(cluster_adjust_mutual_information) + 0.1,
+)
 plt.legend()
 plt.ylabel("Mutual Information with Clustering", fontdict={"fontsize": 12})
 plt.xlabel(r"$f_c$", fontdict={"fontsize": 16})
@@ -114,6 +126,10 @@ plt.errorbar(
     y=targeted_crit_frac_averages, x=swaps, color="purple", linestyle="dashed"
 )
 plt.xlim(-100, 3500)
+plt.ylim(
+    min(targeted_crit_frac_averages) - max(targeted_crit_frac_errors) - 0.01,
+    max(targeted_crit_frac_averages) + max(targeted_crit_frac_errors) + 0.01,
+)
 plt.legend()
 plt.ylabel(r"$f_c$", fontdict={"fontsize": 12}, rotation=0)
 plt.xlabel("Number of Edge Swaps", fontdict={"fontsize": 12})
@@ -135,6 +151,14 @@ plt.errorbar(
     y=cluster_adjust_mutual_information,
     color="purple",
     linestyle="dashed",
+)
+plt.ylim(
+    min(cluster_adjust_mutual_information) - 0.1,
+    max(cluster_adjust_mutual_information) + 0.1,
+)
+plt.xlim(
+    min(targeted_crit_frac_averages) - max(targeted_crit_frac_errors) - 0.01,
+    max(targeted_crit_frac_averages) + max(targeted_crit_frac_errors) + 0.01,
 )
 plt.legend()
 plt.ylabel("Mutual Information with Clustering", fontdict={"fontsize": 12})
