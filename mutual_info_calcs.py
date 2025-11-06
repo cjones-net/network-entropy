@@ -3,6 +3,8 @@ import numpy as np
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 
 FIG_DIR = Path("~/network-entropy/figures").expanduser()
 
@@ -27,9 +29,9 @@ success_count = 0
     cluster_adjust_mutual_information,
 ) = ([], [], [], [], [], [])
 
-#iterates over edge swaps until reaching a cutoff number of swaps
-while successCount <= max(swaps)+1:
-    #at set intervals, records mutual information and critical fraction values
+# iterates over edge swaps until reaching a cutoff number of swaps
+for success_count in tqdm(range(max(swaps) + 1)):
+    # at set intervals, records mutual information and critical fraction values
     if success_count in swaps:
         # informs the user when measurements are being taken
         print("Successful swaps = " + str(success_count))
