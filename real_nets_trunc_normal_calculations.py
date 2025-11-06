@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,6 +9,7 @@ import networkentropy as nent
 
 # specifies the directory of network data
 directory = "network_data"
+FIG_DIR = Path("~/network-entropy/figures").expanduser()
 # initialises lists for degree distribution entropy and molloy-reed critical
 # fraction
 distEntropy, critFracs = [], []
@@ -50,3 +52,6 @@ plt.plot(
 ax.set_xlabel(r"$H(p)$", fontdict={"fontsize": 12})
 ax.set_ylabel(r"$f_c$", fontdict={"fontsize": 12}, rotation=0)
 plt.legend()
+plt.savefig(
+    FIG_DIR / "critical_frac_against_real_networks_degree_entropies.png"
+)
