@@ -1,10 +1,13 @@
 import networkentropy as nent
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import entropy
 
 maxDegree = 1000
 expectedDegree = 10
+FIG_DIR = Path("~/network-entropy/figures").expanduser()
 
 powerDegEnts = []
 powerRemEnts = []
@@ -69,6 +72,7 @@ plt.plot(theoryDegEnts,theoryCrits, linestyle = 'dashed', color = 'black',label 
 plt.xlabel(r'$H(p)$',fontdict = {'fontsize':16})
 plt.ylabel(r'$f_c$',fontdict = {'fontsize':16},rotation=0)
 plt.legend(loc = 'upper left')
+plt.savefig(FIG_DIR / "critical_frac_against_degree_dist_entropies.png")
 
 #plots remaining degree entropy against Molloy-Reed critical fraction
 fig = plt.figure()
@@ -80,4 +84,4 @@ plt.plot(logRemEnts,logCrits,'s',color = 'red',label = 'Log-Normal\n(numerical)'
 plt.plot(theoryRemEnts,theoryCrits, linestyle = 'dashed', color = 'black',label = 'Log-Normal\n(theoretical)')
 ax.set_xlabel(r'$H(q)$',fontdict = {'fontsize':16})
 ax.set_ylabel(r'$f_c$',fontdict = {'fontsize':16},rotation=0)
-plt.legend(loc = 'upper left')
+plt.legend(loc = 'upper left')plt.savefig(FIG_DIR / "critical_frac_against_remaining_dist_entropies.png")
