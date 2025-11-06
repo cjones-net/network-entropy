@@ -18,6 +18,10 @@ min_degree = 1
     power_crit_fractions,
 ) = ([], [], [])
 
+print(
+    "Calculating entropies and critical fractions for"
+    + " power law degree distributions."
+)
 # iterates power law distributions over minimum degree values
 while min_degree < 10:
     # finds value for alpha
@@ -54,11 +58,17 @@ while min_degree < 10:
     min_degree += 1
 
 sigma = 0.2
+print("Power law calculations complete!")
+
 (
     log_norm_degree_entropies,
     log_norm_remaining_entropies,
     log_norm_crit_fractions,
 ) = ([], [], [])
+print(
+    "Calculating entropies and critical fractions for"
+    + " log normal degree distributions."
+)
 # iterates numerical log normal distributions over sigma values
 while sigma < 3:
     # finds value for mu
@@ -89,10 +99,16 @@ while sigma < 3:
     sigma += 0.2
 
 theory_sigma = 0.01
+print("Log normal calculations complete!")
+
 theory_degree_entropies, theory_remaining_entropies, theory_crit_fractions = (
     [],
     [],
     [],
+)
+print(
+    """Calculating entropies and critical fractions for theoretical
+(i.e. non-physical) log normal distributions."""
 )
 # iterates theoretical log normal distributions over sigma values
 while theory_sigma < 3:
@@ -110,6 +126,8 @@ while theory_sigma < 3:
     )
     # increases sigma value for next iteration
     theory_sigma += 0.01
+
+print("Theoretical log normal calculations complete!")
 
 # plots degree distribution entropy against Molloy-Reed critical fraction
 plt.figure()
