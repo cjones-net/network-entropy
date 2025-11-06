@@ -16,6 +16,10 @@ NET_DIR = Path("~/network-entropy/network_data").expanduser()
 # fraction
 distribution_entropies, critical_fractions = [], []
 
+print(
+    "Calculating entropies and critical fractions for"
+    + " real world networks."
+)
 # iterates over network data files, calculating degree distribution entropy and
 # critical fraction values
 for filename in tqdm(os.listdir(NET_DIR)):
@@ -23,9 +27,16 @@ for filename in tqdm(os.listdir(NET_DIR)):
     graph.graph_from_file(os.path.join(NET_DIR, filename))
     distribution_entropies.append(entropy(graph.degree_distribution()))
     critical_fractions.append(graph.critical_point_theory())
+print("Real world network calculations complete!")
 
 # initialises lists for truncated normal  data
 trunc_normal_entropies, truncated_normal_crit_fracs = [], []
+# iterates over values of sigma and calculates maximum entropy for a given
+# critical fraction
+print(
+    "Calculating entropies and critical fractions for"
+    + " truncated normal networks."
+)
 for sigma in tqdm(np.arange(0.01, 100, 0.01)):
     mu = 0.84 * sigma
     trunc_entropy = nent.trunc_entropy(mu, sigma)
@@ -34,6 +45,7 @@ for sigma in tqdm(np.arange(0.01, 100, 0.01)):
     if 1 >= trunc_crit >= 0:
         trunc_normal_entropies.append(trunc_entropy)
         truncated_normal_crit_fracs.append(trunc_crit)
+print("Truncated normal network calculations complete!")
 
 # plots data from both real networks and truncated normal distribution
 fig = plt.figure()
