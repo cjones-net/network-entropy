@@ -14,38 +14,42 @@ NET_DIR = Path("~/network-entropy/network_data").expanduser()
 
 # initialises lists for degree distribution entropy and molloy-reed critical
 # fraction
-distEntropy, critFracs = [], []
+distribution_entropies, critical_fractions = [], []
+
 # iterates over network data files, calculating degree distribution entropy and
 # critical fraction values
 for filename in tqdm(os.listdir(NET_DIR)):
     graph = nent.entropyGraph()
-    graph.graph_from_file(os.path.join(directory, filename))
-    distEntropy.append(entropy(graph.degree_dist()))
-    critFracs.append(graph.molloy_reed())
     graph.graph_from_file(os.path.join(NET_DIR, filename))
+    distribution_entropies.append(entropy(graph.degree_distribution()))
+    critical_fractions.append(graph.critical_point_theory())
 
-# sets the initial value for sigma and initialises lists for truncated normal data
-truncEntList = []
-truncCritList = []
-# iterates over values of sigma and calculates maximum entropy for a given critical fraction
+# initialises lists for truncated normal  data
+trunc_normal_entropies, truncated_normal_crit_fracs = [], []
 for sigma in tqdm(np.arange(0.01, 100, 0.01)):
     mu = 0.84 * sigma
-    truncEnt = nent.trunc_entropy(mu, sigma)
-    truncCrit = nent.trunc_crit(mu, sigma)
+    trunc_entropy = nent.trunc_entropy(mu, sigma)
+    trunc_crit = nent.trunc_critical_point(mu, sigma)
     # filters out results for invalid critical fraction values
-    if 1 >= truncCrit >= 0:
-        truncEntList.append(truncEnt)
-        truncCritList.append(truncCrit)
+    if 1 >= trunc_crit >= 0:
+        trunc_normal_entropies.append(trunc_entropy)
+        truncated_normal_crit_fracs.append(trunc_crit)
 
 # plots data from both real networks and truncated normal distribution
 fig = plt.figure()
 ax = fig.add_subplot()
 plt.xlim(0, 5.5)
 plt.ylim(0, 1)
-plt.plot(distEntropy, critFracs, "x", color="blue", label="Real Networks")
 plt.plot(
-    truncEntList,
-    truncCritList,
+    distribution_entropies,
+    critical_fractions,
+    "x",
+    color="blue",
+    label="Real Networks",
+)
+plt.plot(
+    trunc_normal_entropies,
+    truncated_normal_crit_fracs,
     linestyle="dashed",
     color="black",
     label="Truncated Normal",
