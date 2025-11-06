@@ -1,5 +1,7 @@
 import networkentropy as nent
 import numpy as np
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 
 #generates the graph from an edge list file
