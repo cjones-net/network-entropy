@@ -34,7 +34,10 @@ for success_count in tqdm(range(max(swaps) + 1)):
     # at set intervals, records mutual information and critical fraction values
     if success_count in swaps:
         # informs the user when measurements are being taken
-        print("Successful swaps = " + str(success_count))
+        print(
+            f"Successful swaps = {str(success_count)}, calculating"
+            + " mutual information and critical fractions."
+        )
         standard_mutual_information.append(
             graph.mutual_information(cluster_adjust=False)
         )
